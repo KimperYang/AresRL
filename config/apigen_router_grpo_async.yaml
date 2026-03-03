@@ -1,0 +1,148 @@
+hydra:
+  searchpath:
+    - pkg://verl/trainer/config
+
+defaults:
+  - ppo_trainer
+  - _self_
+
+trainer:
+  project_name: agentic_rl
+  experiment_name: router_grpo_async
+  logger: ["console", "wandb"]
+  total_epochs: 3
+  balance_batch: False
+  val_before_train: False
+  critic_warmup: 50
+  test_freq: 10
+  save_freq: 5
+  max_actor_ckpt_to_keep: 1
+  max_critic_ckpt_to_keep: 1
+  default_local_dir: /mnt/tmp/training_res/grpo_sft_thinking_async
+  nnodes: 1
+  n_gpus_per_node: 2
+
+async_training:
+  staleness_threshold: 0.5
+  trigger_parameter_sync_step: 2
+  require_batches: 1
+  partial_rollout: True
+  use_rollout_log_probs: True
+  compute_prox_log_prob: False
+  checkpoint_engine:
+    enable: True
+    device_buffer_size_M: 4096
+    overlap_broadcast_and_consume: False
+
+rollout:
+  nnodes: 1
+  n_gpus_per_node: 2
+  n: 4
+  total_rollout_steps: null
+  total_epochs: 1
+  test_freq: 10
+
+data:
+  train_files: /mnt/batch/tasks/shared/LS_root/mounts/clusters/jingbo-h100/code/Users/jingbo.yang/TBAMA/rl/data/apigen_router_gt50/train.parquet
+  val_files: /mnt/batch/tasks/shared/LS_root/mounts/clusters/jingbo-h100/code/Users/jingbo.yang/TBAMA/rl/data/apigen_router_gt50/val.parquet
+  train_batch_size: 0
+  gen_batch_size: 1
+  val_batch_size: 4
+  cache_dir: /mnt/batch/tasks/shared/LS_root/mounts/clusters/jingbo-h100/code/Users/jingbo.yang/TBAMA/rl/outputs/verl_cache/rlhf
+  max_prompt_length: 4096
+  max_response_length: 512
+  dataloader_num_workers: 0
+  return_raw_chat: True
+  filter_overlong_prompts: False
+  shuffle: True
+
+actor_rollout_ref:
+  hybrid_engine: False
+  checkpoint_engine: ${oc.select:async_training.checkpoint_engine, null}
+  ref:
+    log_prob_micro_batch_size_per_gpu: 4
+  model:
+    path: /mnt/tmp/training_res/router_thinking_sft_qwen3_1p7b_3epoch/checkpoint-2034
+    trust_remote_code: False
+  rollout:
+    name: vllm
+    mode: async
+    load_format: auto
+    tensor_model_parallel_size: 1
+    data_parallel_size: 1
+    pipeline_model_parallel_size: 1
+    gpu_memory_utilization: 0.5
+    max_num_batched_tokens: 4096
+    max_num_seqs: 8
+    enforce_eager: True
+    enable_prefix_caching: False
+    calculate_log_probs: True
+    log_prob_micro_batch_size_per_gpu: 1
+    prompt_length: 4096
+    response_length: 512
+    max_model_len: 4104
+    n: 4
+    temperature: 0.6
+    top_k: 20
+    top_p: 0.95
+    do_sample: True
+    val_kwargs:
+      do_sample: False
+      temperature: 1.0
+    multi_turn:
+      enable: True
+      max_assistant_turns: 24
+      max_user_turns: 24
+      interaction_config_path: config/apigen_router_interaction_grpo.yaml
+      drop_failed_samples: True
+    custom:
+      progress_bar: True
+      progress_desc: router_rollouts
+      generate_timeout_s: null
+      remote_chunk_size: 32
+    agent:
+      num_workers: 8
+      default_agent_loop: apigen_router_agent
+      agent_loop_config_path: config/apigen_router_agent_loop_grpo.yaml
+      agent_loop_manager_class: router_step_agent_loop.RouterStepAgentLoopManager
+  actor:
+    ppo_mini_batch_size: 16
+    ppo_micro_batch_size_per_gpu: 4
+    ppo_max_token_len_per_gpu: 16384
+    ppo_epochs: 2
+    use_rollout_log_probs: True
+    use_kl_loss: True
+    optim:
+      lr: 5.0e-07
+
+critic:
+  enable: False
+  model:
+    path: /mnt/tmp/training_res/router_thinking_sft_qwen3_1p7b_3epoch/checkpoint-2034
+  ppo_mini_batch_size: 16
+  ppo_micro_batch_size_per_gpu: 4
+  ppo_max_token_len_per_gpu: 16384
+  ppo_epochs: 2
+  optim:
+    lr: 1.0e-06
+
+algorithm:
+  adv_estimator: grpo_rollout
+  grpo_rollout_baseline: random_effort
+  random_effort_seed: 42
+  broadcast_critic_values: True
+  kl_ctrl:
+    kl_coef: 0.001
+
+reward_model:
+  enable: False
+
+ray_kwargs:
+  ray_init:
+    include_dashboard: False
+    runtime_env:
+      excludes:
+        - outputs/**
+        - data/apigen_with_instruction_full.json
+        - data/apigen_router_gt50/train.parquet
+        - data/apigen_router_gt50/val.parquet

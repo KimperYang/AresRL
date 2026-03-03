@@ -1,0 +1,65 @@
+hydra:
+  searchpath:
+    - pkg://verl/trainer/config
+
+defaults:
+  - ppo_trainer
+  - _self_
+
+trainer:
+  project_name: router_ppo
+  experiment_name: qwen_router_apigen
+  logger: ["console"]
+  total_epochs: 1
+  test_freq: -1
+  save_freq: 1
+  default_local_dir: /mnt/tmp/training_res/rl
+  nnodes: 1
+  n_gpus_per_node: 1
+
+data:
+  train_files: data/apigen/train.parquet
+  val_files: data/apigen/val.parquet
+  train_batch_size: 2
+  val_batch_size: 1
+  max_prompt_length: 2048
+  max_response_length: 16
+  return_raw_chat: True
+  filter_overlong_prompts: False
+  shuffle: True
+
+actor_rollout_ref:
+  model:
+    path: Qwen/Qwen2-1.5B-Instruct
+    trust_remote_code: False
+  rollout:
+    name: vllm
+    load_format: auto
+    tensor_model_parallel_size: 1
+    data_parallel_size: 1
+    pipeline_model_parallel_size: 1
+    log_prob_micro_batch_size_per_gpu: 1
+    prompt_length: 2048
+    response_length: 16
+    max_model_len: 4096
+    do_sample: True
+    multi_turn:
+      enable: True
+      max_assistant_turns: 24
+      max_user_turns: 24
+      interaction_config_path: config/router_interaction.yaml
+    agent:
+      num_workers: 4
+      default_agent_loop: router_agent
+      agent_loop_config_path: config/router_agent_loop.yaml
+  actor:
+    ppo_mini_batch_size: 2
+    ppo_micro_batch_size_per_gpu: 1
+
+critic:
+  model:
+    path: Qwen/Qwen2-1.5B-Instruct
+  ppo_micro_batch_size_per_gpu: 1
+
+reward_model:
+  enable: False

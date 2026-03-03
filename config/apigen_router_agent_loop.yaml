@@ -1,0 +1,2 @@
+- name: apigen_router_agent
+  _target_: router_step_agent_loop.RouterStepAgentLoop

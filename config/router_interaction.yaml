@@ -1,0 +1,38 @@
+interaction:
+  - name: router
+    class_name: router_interaction.RouterInteraction
+    config:
+      step_penalties:
+        low: -1.0
+        medium: -2.0
+        high: -3.0
+      success_reward: 10.0
+      max_turns: 12
+      max_tool_calls: 4
+      max_history_chars: 8000
+      agent:
+        base_url: ${oc.env:OSS_OPENAI_BASE_URL, "http://127.0.0.1:30000/v1"}
+        api_key: ${oc.env:OSS_OPENAI_API_KEY, "EMPTY"}
+        model: ${oc.env:OSS_OPENAI_MODEL, "default"}
+        temperature: 0.0
+        max_tokens: 256
+        timeout: 60
+      user:
+        mode: scripted
+        provider: azure
+        model: ${oc.env:AZURE_OPENAI_DEPLOYMENT, "gpt-4o"}
+        endpoint: ${oc.env:AZURE_OPENAI_ENDPOINT, null}
+        api_key: ${oc.env:AZURE_OPENAI_API_KEY, null}
+        api_version: ${oc.env:AZURE_OPENAI_API_VERSION, "2024-02-15-preview"}
+        temperature: 0.7
+        max_tokens: 128
+        timeout: 60
+      judge:
+        enabled: True
+        model: ${oc.env:AZURE_OPENAI_DEPLOYMENT, "gpt-5"}
+        endpoint: ${oc.env:AZURE_OPENAI_ENDPOINT, null}
+        api_key: ${oc.env:AZURE_OPENAI_API_KEY, null}
+        api_version: ${oc.env:AZURE_OPENAI_API_VERSION, "2024-02-15-preview"}
+        temperature: 0.0
+        max_tokens: 8
+        timeout: 60
