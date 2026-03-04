@@ -1,2 +1,0 @@
-- name: maze_agent
-  _target_: maze_agent_loop.MazeAgentLoop

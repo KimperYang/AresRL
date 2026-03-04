@@ -6,3 +6,4 @@ __pycache__/
 outputs/
 plot/
 data/
+env_setup.sh
